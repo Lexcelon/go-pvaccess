@@ -111,6 +111,7 @@ func (ln *Listener) bindInterfaces(ctx context.Context) error {
 					IP:   addr.IP,
 					Port: udpPort,
 				}
+				ctxlog.L(ctx).Infof("Interface Addr %v", laddr)
 				if addr.IP.To4() == nil {
 					laddr.Zone = i.Name
 					// TODO: Figure out what IPv6 multicast group we should use.
@@ -120,6 +121,7 @@ func (ln *Listener) bindInterfaces(ctx context.Context) error {
 				ln.tappedIPs = append(ln.tappedIPs, laddr.IP)
 
 				if err := ln.bindUnicast(ctx, laddr); err != nil {
+					ctxlog.L(ctx).Errorf("bindUnicast Err %v", err)
 					return err
 				}
 
@@ -133,6 +135,7 @@ func (ln *Listener) bindInterfaces(ctx context.Context) error {
 					ln.tappedIPs = append(ln.tappedIPs, laddr.IP)
 					bcasts = append(bcasts, laddr)
 					if err := ln.bindBroadcast(ctx, laddr); err != nil {
+						ctxlog.L(ctx).Errorf("bindBroadcast Err %v", err)
 						return err
 					}
 				}
