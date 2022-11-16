@@ -60,7 +60,7 @@ type Listener struct {
 
 func Listen(ctx context.Context) (*Listener, error) {
 	ctxlog.L(ctx).Infof("udpconn Listen")
-	sendConn, err := net.ListenUDP("udp", &net.UDPAddr{":5076"})
+	sendConn, err := net.ListenUDP("udp", &net.UDPAddr{Port:5076})
 	if err != nil {
 		ctxlog.L(ctx).Errorf("Err %v", err)
 		return nil, err
