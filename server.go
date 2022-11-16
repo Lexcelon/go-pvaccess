@@ -9,13 +9,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/quentinmit/go-pvaccess/internal/connection"
-	"github.com/quentinmit/go-pvaccess/internal/ctxlog"
-	"github.com/quentinmit/go-pvaccess/internal/proto"
-	"github.com/quentinmit/go-pvaccess/internal/search"
-	"github.com/quentinmit/go-pvaccess/internal/server/monitor"
-	"github.com/quentinmit/go-pvaccess/internal/server/status"
-	"github.com/quentinmit/go-pvaccess/pvdata"
+	"github.com/Lexcelon/go-pvaccess/internal/connection"
+	"github.com/Lexcelon/go-pvaccess/internal/ctxlog"
+	"github.com/Lexcelon/go-pvaccess/internal/proto"
+	"github.com/Lexcelon/go-pvaccess/internal/search"
+	"github.com/Lexcelon/go-pvaccess/internal/server/monitor"
+	"github.com/Lexcelon/go-pvaccess/internal/server/status"
+	"github.com/Lexcelon/go-pvaccess/pvdata"
 	"golang.org/x/sync/errgroup"
 )
 

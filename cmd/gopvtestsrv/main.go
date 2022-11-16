@@ -10,9 +10,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	pvaccess "github.com/quentinmit/go-pvaccess"
-	"github.com/quentinmit/go-pvaccess/internal/ctxlog"
-	"github.com/quentinmit/go-pvaccess/pvdata"
+	pvaccess "github.com/Lexcelon/go-pvaccess"
+	"github.com/Lexcelon/go-pvaccess/internal/ctxlog"
+	"github.com/Lexcelon/go-pvaccess/pvdata"
 )
 
 var (

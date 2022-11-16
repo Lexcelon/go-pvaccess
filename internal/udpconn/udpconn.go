@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/quentinmit/go-pvaccess/internal/ctxlog"
+	"github.com/Lexcelon/go-pvaccess/internal/ctxlog"
 	"golang.org/x/sync/errgroup"
 )
 

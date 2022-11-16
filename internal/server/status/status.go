@@ -7,9 +7,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/quentinmit/go-pvaccess/internal/ctxlog"
-	"github.com/quentinmit/go-pvaccess/pvdata"
-	"github.com/quentinmit/go-pvaccess/types"
+	"github.com/Lexcelon/go-pvaccess/internal/ctxlog"
+	"github.com/Lexcelon/go-pvaccess/pvdata"
+	"github.com/Lexcelon/go-pvaccess/types"
 )
 
 type ChannelProviderser interface {

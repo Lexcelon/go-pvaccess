@@ -10,9 +10,9 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/quentinmit/go-pvaccess/internal/ctxlog"
-	"github.com/quentinmit/go-pvaccess/internal/proto"
-	"github.com/quentinmit/go-pvaccess/pvdata"
+	"github.com/Lexcelon/go-pvaccess/internal/ctxlog"
+	"github.com/Lexcelon/go-pvaccess/internal/proto"
+	"github.com/Lexcelon/go-pvaccess/pvdata"
 )
 
 type Connection struct {
