@@ -182,7 +182,7 @@ func (ln *Listener) bindUnicast(ctx context.Context, laddr *net.UDPAddr) error {
 				cerr = err
 			}
 		} else {
-			a := [4]byte{127, 0, 0, 1}
+			a := [4]byte{0, 0, 0, 0}
 			if err := syscall.SetsockoptInet4Addr(int(fd), syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, a); err != nil {
 				ctxlog.L(ctx).Errorf("setsockoptint3 Err %v", err)
 				cerr = err
@@ -241,7 +241,7 @@ func (ln *Listener) bindMulticast(ctx context.Context) error {
 	if err := rawConn.Control(func(fd uintptr) {
 		if err := syscall.SetsockoptIPMreq(int(fd), syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, &syscall.IPMreq{
 			Multiaddr: [4]byte{224, 0, 0, 128},
-			Interface: [4]byte{127, 0, 0, 1},
+			Interface: [4]byte{0, 0, 0, 0},
 		}); err != nil {
 			cerr = err
 		}
