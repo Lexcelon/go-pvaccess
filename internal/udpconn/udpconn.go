@@ -78,6 +78,7 @@ func Listen(ctx context.Context) (*Listener, error) {
 	}
 	if err := ln.bindMulticast(ctx); err != nil {
 		ln.Close()
+		ctxlog.L(ctx).Errorf("bindMulticast Err %v", err)
 		return nil, err
 	}
 	var ips []*net.UDPAddr
@@ -233,6 +234,7 @@ func (ln *Listener) bindMulticast(ctx context.Context) error {
 			return nil
 		})
 	}
+	ctxlog.L(ctx).Infof("Past Listenmulticast")
 	rawConn, err := udpConn.SyscallConn()
 	if err != nil {
 		return fmt.Errorf("can't obtain fd: %v", err)
@@ -246,10 +248,12 @@ func (ln *Listener) bindMulticast(ctx context.Context) error {
 			cerr = err
 		}
 	}); err != nil {
+		ctxlog.L(ctx).Errorf("rawconn.ctrl err %v", err)
 		return err
 	}
 	if cerr != nil {
-		return cerr
+		ctxlog.L(ctx).Errorf("IP_ADD_MEMBERSHIP ERROR - ignore %v", cerr)
+		//return cerr
 	}
 	return ln.addConn(ctx, udpConn)
 }
