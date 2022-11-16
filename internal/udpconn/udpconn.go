@@ -160,10 +160,12 @@ func bcastIP(ip net.IP, mask net.IPMask) net.IP {
 func (ln *Listener) bindUnicast(ctx context.Context, laddr *net.UDPAddr) error {
 	udpConn, network, err := listen(ctx, "udp", laddr.String())
 	if err != nil {
+		ctxlog.L(ctx).Errorf("bindUnicastlisten Err %v", err)
 		return fmt.Errorf("listen %v: %v", laddr, err)
 	}
 	rawConn, err := udpConn.SyscallConn()
 	if err != nil {
+		ctxlog.L(ctx).Errorf("bindUnicastSyscallConn Err %v", err)
 		return fmt.Errorf("can't obtain fd: %v", err)
 	}
 	var cerr error
@@ -171,25 +173,32 @@ func (ln *Listener) bindUnicast(ctx context.Context, laddr *net.UDPAddr) error {
 		if network == "udp6" {
 			if loIntf := ipv6LoopbackIndex(ctx); loIntf >= 0 {
 				if err := syscall.SetsockoptInt(int(fd), syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_IF, loIntf); err != nil {
+					ctxlog.L(ctx).Errorf("setsockoptint1 Err %v", err)
 					cerr = err
 				}
 			}
 			if err := syscall.SetsockoptInt(int(fd), syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_LOOP, 1); err != nil {
+				ctxlog.L(ctx).Errorf("setsockoptint2 Err %v", err)
 				cerr = err
 			}
 		} else {
 			a := [4]byte{127, 0, 0, 1}
 			if err := syscall.SetsockoptInet4Addr(int(fd), syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, a); err != nil {
+				ctxlog.L(ctx).Errorf("setsockoptint3 Err %v", err)
 				cerr = err
 			}
 			if err := syscall.SetsockoptInt(int(fd), syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP, 1); err != nil {
+				ctxlog.L(ctx).Errorf("setsockoptint4 Err %v", err)
 				cerr = err
 			}
 		}
 	}); err != nil {
+		ctxlog.L(ctx).Errorf("bindUnicastrawConnCtrl Err %v", err)
 		return err
 	}
 	if cerr != nil {
+		
+		ctxlog.L(ctx).Errorf("setsockoptint5 Err %v", cerr)
 		return cerr
 	}
 	return ln.addConn(ctx, udpConn)
