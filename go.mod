@@ -1,4 +1,4 @@
-module github.com/quentinmit/go-pvaccess
+module github.com/Lexcelon/go-pvaccess
 
 go 1.17
 
