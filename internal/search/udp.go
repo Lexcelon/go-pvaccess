@@ -67,6 +67,7 @@ func (s *Server) Serve(ctx context.Context) error {
 
 	ln, err := udpconn.Listen(ctx)
 	if err != nil {
+		ctxlog.L(ctx).Errorf("udpconn Listen error: %v", err)
 		return err
 	}
 

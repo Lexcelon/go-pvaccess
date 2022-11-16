@@ -59,8 +59,10 @@ type Listener struct {
 }
 
 func Listen(ctx context.Context) (*Listener, error) {
-	sendConn, err := net.ListenUDP("udp", &net.UDPAddr{})
+	ctxlog.L(ctx).Infof("udpconn Listen")
+	sendConn, err := net.ListenUDP("udp", &net.UDPAddr{":5076"})
 	if err != nil {
+		ctxlog.L(ctx).Errorf("Err %v", err)
 		return nil, err
 	}
 	ch := make(chan *Conn)
@@ -71,6 +73,7 @@ func Listen(ctx context.Context) (*Listener, error) {
 	}
 	if err := ln.bindInterfaces(ctx); err != nil {
 		ln.Close()
+		ctxlog.L(ctx).Errorf("bind Interfaces Err %v", err)
 		return nil, err
 	}
 	if err := ln.bindMulticast(ctx); err != nil {
