@@ -23,7 +23,7 @@ var (
 func main() {
 	flag.Parse()
 
-	log.SetLevel(log.InfoLevel)
+	log.SetLevel(log.DebugLevel)
 	if *verbose {
 		log.SetLevel(log.TraceLevel)
 	}
@@ -40,6 +40,11 @@ func main() {
 		ctxlog.L(ctx).Fatalf("creating server: %v", err)
 	}
 	s.DisableSearch = *disableSearch
+
+	cput := pvaccess.NewSimpleChannel("gopvputtest")
+	puttablevalue := pvdata.PVDouble(3.14)
+	cput.Set(&puttablevalue)
+	s.AddChannelProvider(cput)
 
 	c := pvaccess.NewSimpleChannel("gopvtest")
 	value := pvdata.PVLong(256)

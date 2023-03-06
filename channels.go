@@ -17,6 +17,8 @@ type ChannelFinder = types.ChannelFinder
 type Channel = types.Channel
 type ChannelGetCreator = types.ChannelGetCreator
 type ChannelGeter = types.ChannelGeter
+type ChannelPutCreator = types.ChannelPutCreator
+type ChannelPuter = types.ChannelPuter
 type ChannelRPCCreator = types.ChannelRPCCreator
 type ChannelRPCer = types.ChannelRPCer
 type ChannelMonitorCreator = types.ChannelMonitorCreator
@@ -70,7 +72,8 @@ func (c *serverConn) destroyChannel(id pvdata.PVInt) error {
 }
 
 type SimpleChannel struct {
-	name string
+	name      string
+	structure pvdata.PVStructure
 
 	mu    sync.Mutex
 	value interface{}
@@ -80,7 +83,8 @@ type SimpleChannel struct {
 
 func NewSimpleChannel(name string) *SimpleChannel {
 	c := &SimpleChannel{
-		name: name,
+		name:      name,
+		structure: pvdata.PVStructure{},
 	}
 	c.cond = sync.NewCond(&c.mu)
 	return c
@@ -88,6 +92,10 @@ func NewSimpleChannel(name string) *SimpleChannel {
 
 func (c *SimpleChannel) Name() string {
 	return c.name
+}
+
+func (c *SimpleChannel) Structure() pvdata.PVStructure {
+	return c.structure
 }
 
 // Get returns the current value in c.
@@ -103,6 +111,11 @@ func (c *SimpleChannel) Set(value interface{}) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.value = value
+	// newStructure, err := pvdata.NewPVStructureCoerce(value)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// c.structure = newStructure
 	c.seq++
 	c.cond.Broadcast()
 }
@@ -158,6 +171,15 @@ func (bareScalar) TypeID() string {
 func (c *SimpleChannel) ChannelGet(ctx context.Context) (interface{}, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	return &bareScalar{
+		Value: c.value,
+	}, nil
+}
+
+func (c *SimpleChannel) ChannelPut(value interface{}, ctx context.Context) (interface{}, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.Set(value)
 	return &bareScalar{
 		Value: c.value,
 	}, nil

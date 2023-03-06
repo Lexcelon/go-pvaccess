@@ -24,6 +24,11 @@ func (Channel) Name() string {
 	return "server"
 }
 
+func (Channel) Structure() pvdata.PVStructure {
+	// TODO: Be better than this
+	return pvdata.PVStructure{}
+}
+
 func (c *Channel) CreateChannel(ctx context.Context, name string) (types.Channel, error) {
 	if name == c.Name() {
 		return c, nil

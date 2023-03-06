@@ -31,6 +31,7 @@ type ChannelFinder interface {
 // - CreateChannelArray
 type Channel interface {
 	Name() string
+	Structure() pvdata.PVStructure
 }
 
 type ChannelGetCreator interface {
@@ -39,6 +40,14 @@ type ChannelGetCreator interface {
 
 type ChannelGeter interface {
 	ChannelGet(ctx context.Context) (response interface{}, err error)
+}
+
+type ChannelPutCreator interface {
+	CreateChannelPut(ctx context.Context, req pvdata.PVField) (ChannelPuter, error)
+}
+
+type ChannelPuter interface {
+	ChannelPut(value interface{}, ctx context.Context) (interface{}, error)
 }
 
 type ChannelRPCCreator interface {

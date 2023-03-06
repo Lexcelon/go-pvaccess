@@ -268,6 +268,62 @@ type ChannelGetResponse struct {
 	Value pvdata.PVStructureDiff
 }
 
+// Channel Put
+
+const (
+	CHANNEL_PUT_INIT    = 0x08
+	CHANNEL_PUT_PUT     = 0x00
+	CHANNEL_PUT_DESTROY = 0x10
+)
+
+type ChannelPutRequest struct {
+	ServerChannelID pvdata.PVInt
+	RequestID       pvdata.PVInt
+	Subcommand      pvdata.PVByte
+	// For put_init:
+	PVRequest pvdata.PVField
+	// For put:
+	ToPutBitSet        pvdata.PVBitSet
+	PVPutStructureData pvdata.PVField
+}
+
+func (r ChannelPutRequest) PVEncode(s *pvdata.EncoderState) error {
+	if err := pvdata.Encode(s, &r.ServerChannelID, &r.RequestID, &r.Subcommand); err != nil {
+		return err
+	}
+	if r.Subcommand&CHANNEL_GET_INIT == CHANNEL_GET_INIT {
+		return pvdata.Encode(s, &r.PVRequest)
+	} else if r.Subcommand&CHANNEL_PUT_PUT == CHANNEL_PUT_PUT {
+		return pvdata.Encode(s, &r.ToPutBitSet, &r.PVPutStructureData)
+	}
+	return nil
+}
+func (r *ChannelPutRequest) PVDecode(s *pvdata.DecoderState) error {
+	if err := pvdata.Decode(s, &r.ServerChannelID, &r.RequestID, &r.Subcommand); err != nil {
+		return err
+	}
+	if r.Subcommand&CHANNEL_PUT_INIT == CHANNEL_PUT_INIT {
+		return pvdata.Decode(s, &r.PVRequest)
+	} else if r.Subcommand&CHANNEL_PUT_PUT == CHANNEL_PUT_PUT {
+		return pvdata.Decode(s, &r.ToPutBitSet, &r.PVPutStructureData)
+	}
+	return nil
+}
+
+type ChannelPutResponseInit struct {
+	RequestID  pvdata.PVInt
+	Subcommand pvdata.PVByte
+	Status     pvdata.PVStatus `pvaccess:",breakonerror"`
+	// [if status.type == OK | WARNING]
+	PVPutStructureIF pvdata.FieldDesc
+}
+
+type ChannelPutResponse struct {
+	RequestID  pvdata.PVInt
+	Subcommand pvdata.PVByte
+	Status     pvdata.PVStatus `pvaccess:",breakonerror"`
+}
+
 // channelGetRequest
 // channelGetResponse
 // channelPutRequestInit

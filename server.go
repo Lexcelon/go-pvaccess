@@ -231,7 +231,7 @@ func (c *serverConn) serve(ctx context.Context) error {
 	req := proto.ConnectionValidationRequest{
 		ServerReceiveBufferSize:            pvdata.PVInt(c.ReceiveBufferSize()),
 		ServerIntrospectionRegistryMaxSize: 0x7fff,
-		AuthNZ: []string{"anonymous"},
+		AuthNZ:                             []string{"anonymous"},
 	}
 	c.SendApp(ctx, proto.APP_CONNECTION_VALIDATION, &req)
 
@@ -265,6 +265,7 @@ var serverDispatch = map[pvdata.PVByte]func(c *serverConn, ctx context.Context, 
 	proto.APP_CHANNEL_CREATE:        (*serverConn).handleCreateChannelRequest,
 	proto.APP_CHANNEL_DESTROY:       (*serverConn).handleChannelDestroy,
 	proto.APP_CHANNEL_GET:           (*serverConn).handleChannelGet,
+	proto.APP_CHANNEL_PUT:           (*serverConn).handleChannelPut,
 	proto.APP_CHANNEL_RPC:           (*serverConn).handleChannelRPC,
 	proto.APP_CHANNEL_MONITOR:       (*serverConn).handleChannelMonitor,
 	proto.APP_REQUEST_CANCEL:        (*serverConn).handleRequestCancelDestroy,
@@ -454,6 +455,123 @@ func (c *serverConn) handleChannelGet(ctx context.Context, msg *connection.Messa
 				defer c.mu.Unlock()
 				r.status = READY
 				if req.Subcommand&proto.CHANNEL_GET_DESTROY == proto.CHANNEL_GET_DESTROY {
+					r.status = DESTROYED
+					delete(c.requests, req.RequestID)
+				}
+				return nil
+			})
+		}
+		return nil
+	})
+	return nil
+}
+func (c *serverConn) handleChannelPut(ctx context.Context, msg *connection.Message) error {
+	var req proto.ChannelPutRequest
+	ctxlog.L(ctx).Debugf("Message: %#v", msg)
+	// Remaining problem - issues with decoding the PVStructure:
+	// I think the issus is something to do with the weird way that the
+	// library is using a combination of reflection magic and some
+	// odd assumptions about the data. It shouldn't be too hard to work
+	// around, but I was unsure of how you would like to handle it as
+	// it would affect a lot of how this works. Once you get that sorted
+	// the only other issue I could see sprining up is in the PVStructure
+	// for the returned data (see channel.Structure()). This is pretty
+	// much the same issue as above. Basically, reflection is evil.
+	if err := msg.Decode(&req); err != nil {
+		return err
+	}
+	ctxlog.L(ctx).Debugf("CHANNEL_PUT(%#v)", req)
+	c.g.Go(func() (err error) {
+		defer func() {
+			if err != nil {
+				ctxlog.L(ctx).Warnf("Channel Put failed: %v", err)
+				err = c.SendApp(ctx, proto.APP_CHANNEL_PUT, &proto.ChannelResponseError{
+					RequestID:  req.RequestID,
+					Subcommand: req.Subcommand,
+					Status:     errorToStatus(err),
+				})
+			}
+		}()
+		channel, err := c.getChannel(ctx, req.ServerChannelID)
+		if err != nil {
+			return err
+		}
+		ctx = ctxlog.WithFields(ctx, ctxlog.Fields{
+			"channel":    channel.Name(),
+			"channel_id": req.ServerChannelID,
+			"request_id": req.RequestID,
+		})
+		switch req.Subcommand {
+		case proto.CHANNEL_PUT_INIT:
+			ctxlog.L(ctx).Debugf("CHANNEL_PUT(%#v)", req)
+
+			args, ok := req.PVRequest.(pvdata.PVStructure)
+			if !ok {
+				return fmt.Errorf("Put arguments were of type %T, expected PVStructure", req.PVRequest)
+			}
+			ctxlog.L(ctx).Printf("received request to init channel put with body %v", args)
+
+			var puter ChannelPuter
+			if getc, ok := channel.(ChannelPutCreator); ok {
+				var err error
+				puter, err = getc.CreateChannelPut(ctx, args)
+				if err != nil {
+					return err
+				}
+			} else if p, ok := channel.(ChannelPuter); ok {
+				puter = p
+			} else {
+				return fmt.Errorf("channel %q (ID %x) does not support Put", channel.Name(), req.ServerChannelID)
+			}
+
+			if err := c.addRequest(req.RequestID, &request{doer: puter, status: READY}); err != nil {
+				return err
+			}
+
+			pvs := channel.Structure()
+			fd, err := pvs.FieldDesc()
+			if err != nil {
+				return err
+			}
+			return c.SendApp(ctx, proto.APP_CHANNEL_PUT, &proto.ChannelPutResponseInit{
+				RequestID:        req.RequestID,
+				Subcommand:       req.Subcommand,
+				PVPutStructureIF: fd,
+			})
+		default:
+			ctxlog.L(ctx).Debugf("CHANNEL_PUT(%#v)", req)
+			ctxlog.L(ctx).Printf("received request to execute channel put with body %v", req.ToPutBitSet)
+			c.mu.Lock()
+			defer c.mu.Unlock()
+			r := c.requests[req.RequestID]
+			if r.status != READY {
+				return pvdata.PVStatus{
+					Type:    pvdata.PVStatus_ERROR,
+					Message: pvdata.PVString("request not READY"),
+				}
+			}
+			puter, ok := r.doer.(ChannelPuter)
+			if !ok {
+				return errors.New("request not for put")
+			}
+			ctx, cancel := context.WithCancel(ctx)
+			r.status = REQUEST_IN_PROGRESS
+			r.cancel = cancel
+			c.g.Go(func() error {
+				_, err := puter.ChannelPut(req.ToPutBitSet, ctx)
+				resp := &proto.ChannelPutResponse{
+					RequestID:  req.RequestID,
+					Subcommand: req.Subcommand,
+					Status:     errorToStatus(err),
+				}
+				if err := c.SendApp(ctx, proto.APP_CHANNEL_PUT, resp); err != nil {
+					ctxlog.L(ctx).Errorf("sending put response: %v", err)
+				}
+
+				c.mu.Lock()
+				defer c.mu.Unlock()
+				r.status = READY
+				if req.Subcommand&proto.CHANNEL_PUT_DESTROY == proto.CHANNEL_PUT_DESTROY {
 					r.status = DESTROYED
 					delete(c.requests, req.RequestID)
 				}
