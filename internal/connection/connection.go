@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"os"
 	"sync"
@@ -126,18 +127,19 @@ func (c *Connection) SendApp(ctx context.Context, messageCommand pvdata.PVByte, 
 	if c.encoderState.ByteOrder == binary.BigEndian {
 		flags |= proto.FLAG_BO_BE
 	}
+	fmt.Println("Version: ", c.Version)
 	h := proto.PVAccessHeader{
 		Version:        c.Version,
 		Flags:          flags,
 		MessageCommand: messageCommand,
 		PayloadSize:    pvdata.PVInt(len(bytes)),
 	}
-	l := ctxlog.L(ctx).WithFields(ctxlog.Fields{
-		"command":      messageCommand,
-		"payload_size": len(bytes),
-	})
-	l.Debug("sending app message")
-	l.Tracef("app message body = %x", bytes)
+	// l := ctxlog.L(ctx).WithFields(ctxlog.Fields{
+	// 	"command":      messageCommand,
+	// 	"payload_size": len(bytes),
+	// })
+	// l.Debug("sending app message")
+	// l.Tracef("app message body = %x", bytes)
 	if err := h.PVEncode(c.encoderState); err != nil {
 		return err
 	}
@@ -184,15 +186,17 @@ func (c *Connection) Next(ctx context.Context) (*Message, error) {
 		header := proto.PVAccessHeader{
 			ForceByteOrder: c.forceByteOrder,
 		}
+		fmt.Println("read buf:", header)
 		if err := pvdata.Decode(c.decoderState, &header); err != nil {
 			return nil, err
 		}
-		ctxlog.L(ctx).WithFields(ctxlog.Fields{
-			"version":         header.Version,
-			"flags":           header.Flags,
-			"message_command": header.MessageCommand,
-			"payload_size":    header.PayloadSize,
-		}).Debug("received packet")
+		fmt.Println("read buf after:", header)
+		// ctxlog.L(ctx).WithFields(ctxlog.Fields{
+		// 	"version":         header.Version,
+		// 	"flags":           header.Flags,
+		// 	"message_command": header.MessageCommand,
+		// 	"payload_size":    header.PayloadSize,
+		// }).Debug("received packet")
 		if header.Flags&proto.FLAG_MSG_CTRL == proto.FLAG_MSG_CTRL {
 			if err := c.handleControlMessage(ctx, &header); err != nil {
 				return nil, err
@@ -201,6 +205,7 @@ func (c *Connection) Next(ctx context.Context) (*Message, error) {
 		}
 
 		data := make([]byte, header.PayloadSize)
+		// fmt.Println("read buf:", c.decoderState.Buf)
 		if _, err := io.ReadFull(c.decoderState.Buf, data); err != nil {
 			return &Message{Header: header, Data: data, c: c}, err
 		}
@@ -222,5 +227,6 @@ func (msg *Message) Decode(out interface{}) error {
 		msg.reader = bytes.NewReader(msg.Data)
 	}
 	defer msg.c.decoderState.PushReader(msg.reader)()
+	fmt.Println("decode", msg, out)
 	return pvdata.Decode(msg.c.decoderState, out)
 }

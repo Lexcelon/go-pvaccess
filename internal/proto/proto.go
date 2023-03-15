@@ -35,6 +35,8 @@ func (v *PVAccessHeader) PVEncode(s *pvdata.EncoderState) error {
 	if err := s.Buf.WriteByte(MAGIC); err != nil {
 		return err
 	}
+	// fmt.Println("PVEncode:", v.Version, v.Flags, v.MessageCommand, v.PayloadSize)
+	// fmt.Println("MY PTR", reflect.ValueOf(v).Elem())
 	return pvdata.Encode(s, &v.Version, &v.Flags, &v.MessageCommand, &v.PayloadSize)
 }
 func (v *PVAccessHeader) PVDecode(s *pvdata.DecoderState) error {
@@ -45,6 +47,7 @@ func (v *PVAccessHeader) PVDecode(s *pvdata.DecoderState) error {
 	if magic != MAGIC {
 		return fmt.Errorf("unexpected magic %x", magic)
 	}
+	fmt.Println("Payload size -- Should be nothing or nonsense", v.PayloadSize)
 	if err := pvdata.Decode(s, &v.Version, &v.Flags, &v.MessageCommand); err != nil {
 		return err
 	}
@@ -56,6 +59,7 @@ func (v *PVAccessHeader) PVDecode(s *pvdata.DecoderState) error {
 			s.ByteOrder = binary.LittleEndian
 		}
 	}
+	fmt.Println("Decoding payload size")
 	return v.PayloadSize.PVDecode(s)
 }
 

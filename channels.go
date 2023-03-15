@@ -81,9 +81,10 @@ type SimpleChannel struct {
 	cond  *sync.Cond
 }
 
-func NewSimpleChannel(name string) *SimpleChannel {
+func NewSimpleChannel(name string, initialValue pvdata.PVStructure) *SimpleChannel {
 	c := &SimpleChannel{
-		name:      name,
+		name: name,
+		// structure: initialValue,
 		structure: pvdata.PVStructure{},
 	}
 	c.cond = sync.NewCond(&c.mu)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"reflect"
 	"sync"
 	"time"
 
@@ -222,14 +223,18 @@ func (srv *Server) handleConnection(ctx context.Context, conn net.Conn) {
 
 func (c *serverConn) serve(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
-	c.Version = pvdata.PVByte(2)
+	// Is this the right version? Changing it to 7 for now.
+	// c.Version = pvdata.PVByte(2)
+	c.Version = pvdata.PVByte(7)
+
 	// 0 = Ignore byte order field in header
 	if err := c.SendCtrl(ctx, proto.CTRL_SET_BYTE_ORDER, 0); err != nil {
 		return err
 	}
-
+	recieveBufferSize := c.ReceiveBufferSize()
+	fmt.Println("recieveBufferSize:", recieveBufferSize)
 	req := proto.ConnectionValidationRequest{
-		ServerReceiveBufferSize:            pvdata.PVInt(c.ReceiveBufferSize()),
+		ServerReceiveBufferSize:            pvdata.PVInt(recieveBufferSize),
 		ServerIntrospectionRegistryMaxSize: 0x7fff,
 		AuthNZ:                             []string{"anonymous"},
 	}
@@ -248,6 +253,7 @@ func (c *serverConn) serve(ctx context.Context) error {
 	}
 }
 func (c *serverConn) handleServerOnePacket(ctx context.Context) error {
+	fmt.Println("handleServerOnePacket----------------")
 	msg, err := c.Next(ctx)
 	if err != nil {
 		return err
@@ -354,6 +360,7 @@ func (c *serverConn) getChannel(ctx context.Context, id pvdata.PVInt) (Channel, 
 
 func (c *serverConn) handleChannelGet(ctx context.Context, msg *connection.Message) error {
 	var req proto.ChannelGetRequest
+	// fmt.Println("CHANNEL_GET", msg)
 	if err := msg.Decode(&req); err != nil {
 		return err
 	}
@@ -406,10 +413,13 @@ func (c *serverConn) handleChannelGet(ctx context.Context, msg *connection.Messa
 			if err != nil {
 				return err
 			}
+			o := reflect.ValueOf(out).Elem()
+			fmt.Println("out:", reflect.ValueOf(o))
 			pvs, err := pvdata.NewPVStructure(out)
 			if err != nil {
 				return err
 			}
+			fmt.Println("pvs:", reflect.ValueOf(pvs), reflect.TypeOf(pvs), pvs.String())
 			fd, err := pvs.FieldDesc()
 			if err != nil {
 				return err
@@ -466,8 +476,11 @@ func (c *serverConn) handleChannelGet(ctx context.Context, msg *connection.Messa
 	return nil
 }
 func (c *serverConn) handleChannelPut(ctx context.Context, msg *connection.Message) error {
+	// debug.PrintStack()
 	var req proto.ChannelPutRequest
-	ctxlog.L(ctx).Debugf("Message: %#v", msg)
+	ctxlog.L(ctx).Debugf("BEGIN_CHANNEL_PUT (%+v)", msg)
+	fmt.Println("BEGIN CHANNEL_PUT\n", msg)
+
 	// Remaining problem - issues with decoding the PVStructure:
 	// I think the issus is something to do with the weird way that the
 	// library is using a combination of reflection magic and some
@@ -478,6 +491,7 @@ func (c *serverConn) handleChannelPut(ctx context.Context, msg *connection.Messa
 	// for the returned data (see channel.Structure()). This is pretty
 	// much the same issue as above. Basically, reflection is evil.
 	if err := msg.Decode(&req); err != nil {
+		// fmt.Println("FAILED MESSAGE DECODE", err)
 		return err
 	}
 	ctxlog.L(ctx).Debugf("CHANNEL_PUT(%#v)", req)
@@ -504,13 +518,11 @@ func (c *serverConn) handleChannelPut(ctx context.Context, msg *connection.Messa
 		switch req.Subcommand {
 		case proto.CHANNEL_PUT_INIT:
 			ctxlog.L(ctx).Debugf("CHANNEL_PUT(%#v)", req)
-
 			args, ok := req.PVRequest.(pvdata.PVStructure)
 			if !ok {
 				return fmt.Errorf("Put arguments were of type %T, expected PVStructure", req.PVRequest)
 			}
 			ctxlog.L(ctx).Printf("received request to init channel put with body %v", args)
-
 			var puter ChannelPuter
 			if getc, ok := channel.(ChannelPutCreator); ok {
 				var err error
@@ -523,11 +535,9 @@ func (c *serverConn) handleChannelPut(ctx context.Context, msg *connection.Messa
 			} else {
 				return fmt.Errorf("channel %q (ID %x) does not support Put", channel.Name(), req.ServerChannelID)
 			}
-
 			if err := c.addRequest(req.RequestID, &request{doer: puter, status: READY}); err != nil {
 				return err
 			}
-
 			pvs := channel.Structure()
 			fd, err := pvs.FieldDesc()
 			if err != nil {
@@ -567,7 +577,6 @@ func (c *serverConn) handleChannelPut(ctx context.Context, msg *connection.Messa
 				if err := c.SendApp(ctx, proto.APP_CHANNEL_PUT, resp); err != nil {
 					ctxlog.L(ctx).Errorf("sending put response: %v", err)
 				}
-
 				c.mu.Lock()
 				defer c.mu.Unlock()
 				r.status = READY
@@ -580,6 +589,8 @@ func (c *serverConn) handleChannelPut(ctx context.Context, msg *connection.Messa
 		}
 		return nil
 	})
+
+	// fmt.Println("END OF CHANNEL_PUT")
 	return nil
 }
 func (c *serverConn) handleChannelMonitor(ctx context.Context, msg *connection.Message) error {

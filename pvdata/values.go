@@ -608,6 +608,7 @@ func (v PVStructure) PVDecode(s *DecoderState) error {
 		if s.useChangedBitSet {
 			s.changedBitSetIndex++
 		}
+		fmt.Println("tags:", tags)
 		pvf := valueToPVField(item, tagsToOptions(tags)...)
 		if pvf == nil {
 			return fmt.Errorf("don't know how to encode %#v", item.Interface())
@@ -633,12 +634,14 @@ func (v PVStructure) String() string {
 func (v PVStructure) FieldDesc() (FieldDesc, error) {
 	var fields []StructFieldDesc
 	t := v.v.Type()
+	// fmt.Println("FieldDesc:", v.v, t)
 	for i := 0; i < v.v.NumField(); i++ {
 		name, tags := parseTag(t.Field(i).Tag.Get("pvaccess"))
 		if name == "" {
 			name = t.Field(i).Name
 		}
 		vf := v.v.Field(i)
+		fmt.Println("FieldDesc:", name, tags, reflect.ValueOf(vf))
 		if tags["omitifnil"] != "" && vf.Kind() == reflect.Ptr && (!vf.IsValid() || vf.IsNil()) {
 			continue
 		}
