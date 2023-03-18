@@ -3,6 +3,7 @@ package pvaccess
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sync"
 
 	"github.com/Lexcelon/go-pvaccess/internal/ctxlog"
@@ -95,8 +96,21 @@ func (c *SimpleChannel) Name() string {
 	return c.name
 }
 
-func (c *SimpleChannel) Structure() pvdata.PVStructure {
-	return c.structure
+func (c *SimpleChannel) FieldDesc() (pvdata.FieldDesc, error) {
+	valueField, err := pvdata.ValueToField(reflect.ValueOf(c.value))
+	if err != nil {
+		return pvdata.FieldDesc{}, err
+	}
+	return pvdata.FieldDesc{
+		StructType: "structure",
+		TypeCode:   0b10000000,
+		Fields: []pvdata.StructFieldDesc{
+			{
+				Name:  "value",
+				Field: valueField,
+			},
+		},
+	}, nil
 }
 
 // Get returns the current value in c.
@@ -178,8 +192,6 @@ func (c *SimpleChannel) ChannelGet(ctx context.Context) (interface{}, error) {
 }
 
 func (c *SimpleChannel) ChannelPut(value interface{}, ctx context.Context) (interface{}, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	c.Set(value)
 	return &bareScalar{
 		Value: c.value,

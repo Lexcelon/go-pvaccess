@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"time"
 
 	"fmt"
 	"os"
@@ -96,17 +97,17 @@ func main() {
 
 	s.AddChannelProvider(cput)
 
-	// thisInitVal, err := pvdata.NewPVStructure(&ChannelValues{Value: pvdata.PVULong(256)})
-	// c := pvaccess.NewSimpleChannel("gopvtest", thisInitVal)
-	// value := pvdata.PVLong(256)
-	// c.Set(&value)
-	// s.AddChannelProvider(c)
-	// go func() {
-	// 	for range time.Tick(time.Second) {
-	// 		value++
-	// 		c.Set(&value)
-	// 	}
-	// }()
+	thisInitVal, err := pvdata.NewPVStructure(&ChannelValues{v: pvdata.PVULong(256)})
+	c := pvaccess.NewSimpleChannel("gopvtest", thisInitVal)
+	value := pvdata.PVLong(256)
+	c.Set(&value)
+	s.AddChannelProvider(c)
+	go func() {
+		for range time.Tick(time.Second) {
+			value++
+			c.Set(&value)
+		}
+	}()
 
 	s.ListenAndServe(ctx)
 }

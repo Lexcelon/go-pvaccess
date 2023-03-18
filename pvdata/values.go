@@ -466,7 +466,7 @@ func (a PVArray) FieldDesc() (FieldDesc, error) {
 	} else {
 		prototype = reflect.New(a.v.Type().Elem())
 	}
-	f, err := valueToField(prototype)
+	f, err := ValueToField(prototype)
 	if err != nil {
 		return FieldDesc{}, err
 	}
@@ -645,7 +645,7 @@ func (v PVStructure) FieldDesc() (FieldDesc, error) {
 		if tags["omitifnil"] != "" && vf.Kind() == reflect.Ptr && (!vf.IsValid() || vf.IsNil()) {
 			continue
 		}
-		f, err := valueToField(v.v.Field(i))
+		f, err := ValueToField(v.v.Field(i))
 		if err != nil {
 			return FieldDesc{}, fmt.Errorf("calling Field on %s: %v", name, err)
 		}
@@ -746,7 +746,7 @@ func (v *PVAny) PVEncode(s *EncoderState) error {
 	if v.Data == nil {
 		return Encode(s, &FieldDesc{TypeCode: NULL_TYPE_CODE})
 	}
-	f, err := valueToField(reflect.ValueOf(&v.Data))
+	f, err := ValueToField(reflect.ValueOf(&v.Data))
 	if err != nil {
 		return err
 	}

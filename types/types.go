@@ -31,7 +31,7 @@ type ChannelFinder interface {
 // - CreateChannelArray
 type Channel interface {
 	Name() string
-	Structure() pvdata.PVStructure
+	FieldDesc() (pvdata.FieldDesc, error)
 }
 
 type ChannelGetCreator interface {

@@ -37,7 +37,7 @@ func TestField(t *testing.T) {
 			// Make a copy on the heap
 			in := reflect.New(reflect.TypeOf(test.in))
 			in.Elem().Set(reflect.ValueOf(test.in))
-			f, err := valueToField(in)
+			f, err := ValueToField(in)
 
 			if err != nil {
 				t.Errorf("failed to convert to Field: %v", err)

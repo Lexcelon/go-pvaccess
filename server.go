@@ -481,15 +481,6 @@ func (c *serverConn) handleChannelPut(ctx context.Context, msg *connection.Messa
 	ctxlog.L(ctx).Debugf("BEGIN_CHANNEL_PUT (%+v)", msg)
 	fmt.Println("BEGIN CHANNEL_PUT\n", msg)
 
-	// Remaining problem - issues with decoding the PVStructure:
-	// I think the issus is something to do with the weird way that the
-	// library is using a combination of reflection magic and some
-	// odd assumptions about the data. It shouldn't be too hard to work
-	// around, but I was unsure of how you would like to handle it as
-	// it would affect a lot of how this works. Once you get that sorted
-	// the only other issue I could see sprining up is in the PVStructure
-	// for the returned data (see channel.Structure()). This is pretty
-	// much the same issue as above. Basically, reflection is evil.
 	if err := msg.Decode(&req); err != nil {
 		// fmt.Println("FAILED MESSAGE DECODE", err)
 		return err
@@ -518,15 +509,12 @@ func (c *serverConn) handleChannelPut(ctx context.Context, msg *connection.Messa
 		switch req.Subcommand {
 		case proto.CHANNEL_PUT_INIT:
 			ctxlog.L(ctx).Debugf("CHANNEL_PUT(%#v)", req)
-			args, ok := req.PVRequest.(pvdata.PVStructure)
-			if !ok {
-				return fmt.Errorf("Put arguments were of type %T, expected PVStructure", req.PVRequest)
-			}
-			ctxlog.L(ctx).Printf("received request to init channel put with body %v", args)
+			// args, ok := req.PVStructureIF
+			// ctxlog.L(ctx).Printf("received request to init channel put with body %v", args)
 			var puter ChannelPuter
 			if getc, ok := channel.(ChannelPutCreator); ok {
 				var err error
-				puter, err = getc.CreateChannelPut(ctx, args)
+				puter, err = getc.CreateChannelPut(ctx, &pvdata.PVAny{})
 				if err != nil {
 					return err
 				}
@@ -538,15 +526,72 @@ func (c *serverConn) handleChannelPut(ctx context.Context, msg *connection.Messa
 			if err := c.addRequest(req.RequestID, &request{doer: puter, status: READY}); err != nil {
 				return err
 			}
-			pvs := channel.Structure()
-			fd, err := pvs.FieldDesc()
+
 			if err != nil {
 				return err
 			}
+
+			fmt.Println("SENDING CHANNEL_PUT_INIT RESPONSE: Structure Data (TypeCode, HasId, Id):", (byte)(req.TypeFlag), req.TypeID != 0, req.TypeID)
+
+			fd, err := channel.FieldDesc()
+			if err != nil {
+				return err
+			}
+
 			return c.SendApp(ctx, proto.APP_CHANNEL_PUT, &proto.ChannelPutResponseInit{
 				RequestID:        req.RequestID,
 				Subcommand:       req.Subcommand,
+				Status:           errorToStatus(err),
 				PVPutStructureIF: fd,
+			})
+		case proto.CHANNEL_PUT_GET_PUT:
+			ctxlog.L(ctx).Debugf("CHANNEL_PUT(%#v)", req)
+			ctxlog.L(ctx).Printf("received request to execute channel get-put with body %v", req.ToPutBitSet)
+			c.mu.Lock()
+			defer c.mu.Unlock()
+			r := c.requests[req.RequestID]
+			if r.status != READY {
+				return pvdata.PVStatus{
+					Type:    pvdata.PVStatus_ERROR,
+					Message: pvdata.PVString("request not READY"),
+				}
+			}
+			ctx, cancel := context.WithCancel(ctx)
+			r.status = REQUEST_IN_PROGRESS
+			r.cancel = cancel
+			c.g.Go(func() error {
+				var geter ChannelGeter
+				if getc, ok := channel.(ChannelGetCreator); ok {
+					var err error
+					geter, err = getc.CreateChannelGet(ctx, pvdata.PVStructure{})
+					if err != nil {
+						return err
+					}
+				} else if g, ok := channel.(ChannelGeter); ok {
+					geter = g
+				} else {
+					return fmt.Errorf("channel %q (ID %x) does not support Get", channel.Name(), req.ServerChannelID)
+				}
+				respData, err := geter.ChannelGet(ctx)
+				resp := &proto.ChannelGetPutResponse{
+					RequestID:  req.RequestID,
+					Subcommand: req.Subcommand,
+					Status:     errorToStatus(err),
+					Value: pvdata.PVStructureDiff{
+						Value: respData,
+					},
+				}
+				if err := c.SendApp(ctx, proto.APP_CHANNEL_PUT, resp); err != nil {
+					ctxlog.L(ctx).Errorf("sending put response: %v", err)
+				}
+				c.mu.Lock()
+				defer c.mu.Unlock()
+				r.status = READY
+				if req.Subcommand&proto.CHANNEL_PUT_DESTROY == proto.CHANNEL_PUT_DESTROY {
+					r.status = DESTROYED
+					delete(c.requests, req.RequestID)
+				}
+				return nil
 			})
 		default:
 			ctxlog.L(ctx).Debugf("CHANNEL_PUT(%#v)", req)
@@ -560,15 +605,25 @@ func (c *serverConn) handleChannelPut(ctx context.Context, msg *connection.Messa
 					Message: pvdata.PVString("request not READY"),
 				}
 			}
-			puter, ok := r.doer.(ChannelPuter)
-			if !ok {
-				return errors.New("request not for put")
-			}
+			// puter, ok := r.doer.(ChannelPuter)
+			// if !ok {
+			// 	return errors.New("request not for put")
+			// }
 			ctx, cancel := context.WithCancel(ctx)
 			r.status = REQUEST_IN_PROGRESS
 			r.cancel = cancel
 			c.g.Go(func() error {
-				_, err := puter.ChannelPut(req.ToPutBitSet, ctx)
+				// field := req.PVPutStructureData
+
+				/// TODO : decode the data using the structure from the request
+				// decoder := pvdata.DecoderState{
+				// 	Buf:       bytes.NewReader([]byte{1, 3}),
+				// 	ByteOrder: binary.BigEndian,
+				// }
+				// var data pvdata.PVAny;
+				// err := pvdata.Decode(decoder, data)
+				// _, err := puter.ChannelPut(req.ToPutBitSet, ctx)
+
 				resp := &proto.ChannelPutResponse{
 					RequestID:  req.RequestID,
 					Subcommand: req.Subcommand,
@@ -590,7 +645,7 @@ func (c *serverConn) handleChannelPut(ctx context.Context, msg *connection.Messa
 		return nil
 	})
 
-	// fmt.Println("END OF CHANNEL_PUT")
+	fmt.Println("END OF CHANNEL_PUT")
 	return nil
 }
 func (c *serverConn) handleChannelMonitor(ctx context.Context, msg *connection.Message) error {

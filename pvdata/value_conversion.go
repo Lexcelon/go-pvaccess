@@ -206,35 +206,20 @@ func Encode(s *EncoderState, vs ...interface{}) error {
 	return nil
 }
 func Decode(s *DecoderState, vs ...interface{}) error {
-	//fmt.Println("\n-- DECODE START --\n")
 	fmt.Println("\nVS:\n", vs)
+	fmt.Println("\nVS VALUE:\n", reflect.ValueOf(vs))
 	for _, v := range vs {
-		//fmt.Print("Index: ", i)
-		fmt.Println("\nVS VALUE:\n", reflect.ValueOf(vs))
-		//fmt.Println("\nV\n", v)
-		//fmt.Println("\nV VALUE:\n", reflect.ValueOf(v), reflect.ValueOf(v).Type())
-		if reflect.ValueOf(v).Kind() == reflect.Ptr {
-			//fmt.Println("\nV VALUE DEEP\n", reflect.ValueOf(v).Elem())
-		}
 		pvf := valueToPVField(reflect.ValueOf(v))
-		if reflect.ValueOf(pvf).Kind() == reflect.Ptr {
-			//fmt.Println("\nPTR:\n", reflect.ValueOf(pvf))
-		} else {
-			//fmt.Println("\nREFLECTED:\n", pvf)
-		}
 
 		if pvf == nil {
-			//fmt.Println("\nCAN'T DECODE\n", v)
 			return fmt.Errorf("can't decode %#v", v)
 		}
-		//fmt.Println("\nTYPE OF DECODED\n", reflect.TypeOf(pvf))
+
 		if err := pvf.PVDecode(s); err != nil {
-			//fmt.Println("\nERROR DECODING\n", err)
 			return err
 		}
-		//fmt.Println("\nSuccess DECODED\n", reflect.ValueOf(pvf))
 	}
-	//fmt.Println("\n----------------END THIS DECODE-------------------\n")
+
 	return nil
 }
 
@@ -242,7 +227,7 @@ type FieldDescer interface {
 	FieldDesc() (FieldDesc, error)
 }
 
-func valueToField(v reflect.Value) (FieldDesc, error) {
+func ValueToField(v reflect.Value) (FieldDesc, error) {
 	if f, ok := v.Interface().(FieldDescer); ok {
 		return f.FieldDesc()
 	}

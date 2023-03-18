@@ -24,9 +24,9 @@ func (Channel) Name() string {
 	return "server"
 }
 
-func (Channel) Structure() pvdata.PVStructure {
+func (Channel) FieldDesc() (pvdata.FieldDesc, error) {
 	// TODO: Be better than this
-	return pvdata.PVStructure{}
+	return pvdata.FieldDesc{}, nil
 }
 
 func (c *Channel) CreateChannel(ctx context.Context, name string) (types.Channel, error) {
