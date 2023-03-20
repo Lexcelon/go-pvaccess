@@ -98,7 +98,7 @@ type TypeIDer interface {
 }
 
 func valueToPVField(v reflect.Value, options ...option) PVField {
-	fmt.Println("\nOptions:\n", options)
+	// fmt.Println("\nOptions:\n", options)
 	for _, o := range options {
 		if pvf := o(v); pvf != nil {
 			return pvf
@@ -108,7 +108,7 @@ func valueToPVField(v reflect.Value, options ...option) PVField {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
-	fmt.Println("\nvalueToPVField after PTR check 1\n", v.Type(), v.Kind(), v.CanInterface())
+	// fmt.Println("\nvalueToPVField after PTR check 1\n", v.Type(), v.Kind(), v.CanInterface())
 	if v.CanInterface() {
 		i := v.Interface()
 		//fmt.Println("INTERFACE:", i)
@@ -116,54 +116,54 @@ func valueToPVField(v reflect.Value, options ...option) PVField {
 		if i, ok := i.(PVField); ok {
 			return i
 		}
-		fmt.Println("\nvalueToPVField Before PTR check 2\n", i, v)
+		// fmt.Println("\nvalueToPVField Before PTR check 2\n", i, v)
 		if v.Kind() != reflect.Ptr && v.CanAddr() {
 			i = v.Addr().Interface()
 		}
-		fmt.Println("\nvalueToPVField after PTR check 2\n", i)
+		// fmt.Println("\nvalueToPVField after PTR check 2\n", i)
 		if i, ok := i.(PVField); ok {
 			return i
 		}
-		fmt.Println("\nAttempting to cast to PVField\n")
+		// fmt.Println("\nAttempting to cast to PVField\n")
 		switch i := i.(type) {
 		case *PVField:
-			fmt.Println("\nSelected PVField\n")
+			// fmt.Println("\nSelected PVField\n")
 			return *i
 		case *bool:
-			fmt.Println("\nSelected bool\n")
+			// fmt.Println("\nSelected bool\n")
 			return (*PVBoolean)(i)
 		case *int8:
-			fmt.Println("\nSelected int8\n")
+			// fmt.Println("\nSelected int8\n")
 			return (*PVByte)(i)
 		case *uint8:
-			fmt.Println("\nSelected uint8\n")
+			// fmt.Println("\nSelected uint8\n")
 			return (*PVUByte)(i)
 		case *int16:
-			fmt.Println("\nSelected int16\n")
+			// fmt.Println("\nSelected int16\n")
 			return (*PVShort)(i)
 		case *uint16:
-			fmt.Println("\nSelected uint16\n")
+			// fmt.Println("\nSelected uint16\n")
 			return (*PVUShort)(i)
 		case *int32:
-			fmt.Println("\nSelected int32\n")
+			// fmt.Println("\nSelected int32\n")
 			return (*PVInt)(i)
 		case *uint32:
-			fmt.Println("\nSelected uint32\n")
+			// fmt.Println("\nSelected uint32\n")
 			return (*PVUInt)(i)
 		case *int64:
-			fmt.Println("\nSelected int64\n")
+			// fmt.Println("\nSelected int64\n")
 			return (*PVLong)(i)
 		case *uint64:
-			fmt.Println("\nSelected uint64\n")
+			// fmt.Println("\nSelected uint64\n")
 			return (*PVULong)(i)
 		case *float32:
-			fmt.Println("\nSelected float32\n")
+			// fmt.Println("\nSelected float32\n")
 			return (*PVFloat)(i)
 		case *float64:
-			fmt.Println("\nSelected float64\n")
+			// fmt.Println("\nSelected float64\n")
 			return (*PVDouble)(i)
 		case *string:
-			fmt.Println("\nSelected string\n")
+			// fmt.Println("\nSelected string\n")
 			return (*PVString)(i)
 		}
 		//fmt.Println("\nFailed to cast to PVField\n")
@@ -206,8 +206,8 @@ func Encode(s *EncoderState, vs ...interface{}) error {
 	return nil
 }
 func Decode(s *DecoderState, vs ...interface{}) error {
-	fmt.Println("\nVS:\n", vs)
-	fmt.Println("\nVS VALUE:\n", reflect.ValueOf(vs))
+	// fmt.Println("\nVS:\n", vs)
+	// fmt.Println("\nVS VALUE:\n", reflect.ValueOf(vs))
 	for _, v := range vs {
 		pvf := valueToPVField(reflect.ValueOf(v))
 

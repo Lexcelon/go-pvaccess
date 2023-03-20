@@ -286,12 +286,12 @@ type ChannelPutRequest struct {
 	RequestID       pvdata.PVInt
 	Subcommand      pvdata.PVByte
 	// For put_init: THIS IS A HACK AND ONLY WORKS WITH SIMPLE DATA - This assumes, only 0xFF, 0xFE, or 0xFD for TypeFlag
-	TypeFlag  pvdata.PVUByte //
-	TypeID    pvdata.PVUShort
+	// TypeFlag  pvdata.PVUByte
+	// TypeID    pvdata.PVUShort
 	FieldDesc pvdata.FieldDesc
 	// For put:
 	ToPutBitSet        pvdata.PVBitSet // PvBitSet
-	PVPutStructureData pvdata.PVField  // PVField
+	PVPutStructureData pvdata.PVAny    // PVField
 }
 
 func (r ChannelPutRequest) PVEncode(s *pvdata.EncoderState) error {
@@ -299,14 +299,7 @@ func (r ChannelPutRequest) PVEncode(s *pvdata.EncoderState) error {
 		return err
 	}
 	if r.Subcommand&CHANNEL_GET_INIT == CHANNEL_GET_INIT {
-		if err := pvdata.Encode(s, &r.TypeFlag, &r.TypeID); err != nil {
-			return err
-		}
-		if r.TypeFlag == 0xFD {
-			return pvdata.Encode(s, &r.FieldDesc)
-		} else {
-			return nil
-		}
+		return pvdata.Encode(s, &r.FieldDesc)
 	} else if r.Subcommand&CHANNEL_PUT_GET_PUT == CHANNEL_PUT_GET_PUT {
 	} else if r.Subcommand&CHANNEL_PUT_FINAL == CHANNEL_PUT_FINAL {
 		return pvdata.Encode(s, &r.ToPutBitSet, &r.PVPutStructureData)
@@ -318,11 +311,19 @@ func (r *ChannelPutRequest) PVDecode(s *pvdata.DecoderState) error {
 		return err
 	}
 	if r.Subcommand&CHANNEL_PUT_INIT == CHANNEL_PUT_INIT {
-		if err := pvdata.Decode(s, &r.TypeFlag, &r.TypeID); err != nil {
+		var typeFlag pvdata.PVUByte
+		var typeID pvdata.PVUShort
+		if err := pvdata.Decode(s, &typeFlag, &typeID); err != nil {
 			return err
 		}
-		if r.TypeFlag == 0xFD {
-			return pvdata.Decode(s, &r.FieldDesc)
+
+		if typeFlag == 0xFD {
+			var fieldDesc pvdata.FieldDesc
+			if err := pvdata.Decode(s, &fieldDesc); err != nil {
+				return err
+			}
+			fieldDesc.ID = typeID
+			fieldDesc.HasID = true
 		} else {
 			return nil
 		}

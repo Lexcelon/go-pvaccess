@@ -32,6 +32,8 @@ type ChannelFinder interface {
 type Channel interface {
 	Name() string
 	FieldDesc() (pvdata.FieldDesc, error)
+	LookupTypeCode(code pvdata.PVUShort) (pvdata.FieldDesc, error)
+	StoreTypeCode(code pvdata.PVUShort, desc pvdata.FieldDesc)
 }
 
 type ChannelGetCreator interface {
@@ -43,7 +45,7 @@ type ChannelGeter interface {
 }
 
 type ChannelPutCreator interface {
-	CreateChannelPut(ctx context.Context, req pvdata.PVField) (ChannelPuter, error)
+	CreateChannelPut(ctx context.Context, req pvdata.StructFieldDesc) (ChannelPuter, error)
 }
 
 type ChannelPuter interface {

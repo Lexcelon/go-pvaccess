@@ -547,6 +547,11 @@ type PVStructure struct {
 
 // NewPVStructure creates a PVStructure from a pointer to a struct type or a PVStructure.
 func NewPVStructure(data interface{}) (PVStructure, error) {
+	if data == nil {
+		return PVStructure{
+			v: reflect.ValueOf(nil),
+		}, nil
+	}
 	if data, ok := data.(PVStructure); ok {
 		return data, nil
 	}
@@ -608,7 +613,7 @@ func (v PVStructure) PVDecode(s *DecoderState) error {
 		if s.useChangedBitSet {
 			s.changedBitSetIndex++
 		}
-		fmt.Println("tags:", tags)
+		// fmt.Println("tags:", tags)
 		pvf := valueToPVField(item, tagsToOptions(tags)...)
 		if pvf == nil {
 			return fmt.Errorf("don't know how to encode %#v", item.Interface())
@@ -641,7 +646,7 @@ func (v PVStructure) FieldDesc() (FieldDesc, error) {
 			name = t.Field(i).Name
 		}
 		vf := v.v.Field(i)
-		fmt.Println("FieldDesc:", name, tags, reflect.ValueOf(vf))
+		// fmt.Println("FieldDesc:", name, tags, reflect.ValueOf(vf))
 		if tags["omitifnil"] != "" && vf.Kind() == reflect.Ptr && (!vf.IsValid() || vf.IsNil()) {
 			continue
 		}

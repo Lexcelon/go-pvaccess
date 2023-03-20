@@ -1,7 +1,9 @@
 package pvaccess
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -280,6 +282,12 @@ var serverDispatch = map[pvdata.PVByte]func(c *serverConn, ctx context.Context, 
 }
 
 func (c *serverConn) handleConnectionValidation(ctx context.Context, msg *connection.Message) error {
+	// Dump message in hex:
+	msghex := ""
+	for _, b := range msg.Data {
+		msghex += fmt.Sprintf("%02x ", b)
+	}
+	fmt.Println("12345678: " + msghex)
 	var resp proto.ConnectionValidationResponse
 	if err := msg.Decode(&resp); err != nil {
 		return err
@@ -290,6 +298,12 @@ func (c *serverConn) handleConnectionValidation(ctx context.Context, msg *connec
 }
 
 func (c *serverConn) handleCreateChannelRequest(ctx context.Context, msg *connection.Message) error {
+	// Dump message in hex:
+	msghex := ""
+	for _, b := range msg.Data {
+		msghex += fmt.Sprintf("%02x ", b)
+	}
+	fmt.Println("12345678: " + msghex)
 	var req proto.CreateChannelRequest
 	if err := msg.Decode(&req); err != nil {
 		return err
@@ -317,6 +331,12 @@ func (c *serverConn) handleCreateChannelRequest(ctx context.Context, msg *connec
 }
 
 func (c *serverConn) handleChannelDestroy(ctx context.Context, msg *connection.Message) error {
+	// Dump message in hex:
+	msghex := ""
+	for _, b := range msg.Data {
+		msghex += fmt.Sprintf("%02x ", b)
+	}
+	fmt.Println("12345678: " + msghex)
 	var req proto.DestroyChannel
 	if err := msg.Decode(&req); err != nil {
 		return err
@@ -359,6 +379,12 @@ func (c *serverConn) getChannel(ctx context.Context, id pvdata.PVInt) (Channel, 
 }
 
 func (c *serverConn) handleChannelGet(ctx context.Context, msg *connection.Message) error {
+	// Dump message in hex:
+	msghex := ""
+	for _, b := range msg.Data {
+		msghex += fmt.Sprintf("%02x ", b)
+	}
+	fmt.Println("12345678: " + msghex)
 	var req proto.ChannelGetRequest
 	// fmt.Println("CHANNEL_GET", msg)
 	if err := msg.Decode(&req); err != nil {
@@ -391,6 +417,7 @@ func (c *serverConn) handleChannelGet(ctx context.Context, msg *connection.Messa
 			if !ok {
 				return fmt.Errorf("Get arguments were of type %T, expected PVStructure", req.PVRequest.Data)
 			}
+
 			ctxlog.L(ctx).Printf("received request to init channel get with body %v", args)
 			// TODO: Parse args to select output data
 			var geter ChannelGeter
@@ -476,13 +503,19 @@ func (c *serverConn) handleChannelGet(ctx context.Context, msg *connection.Messa
 	return nil
 }
 func (c *serverConn) handleChannelPut(ctx context.Context, msg *connection.Message) error {
+	// Dump message in hex:
+	msghex := ""
+	for _, b := range msg.Data {
+		msghex += fmt.Sprintf("%02x ", b)
+	}
+	fmt.Println("12345678: " + msghex)
 	// debug.PrintStack()
 	var req proto.ChannelPutRequest
 	ctxlog.L(ctx).Debugf("BEGIN_CHANNEL_PUT (%+v)", msg)
 	fmt.Println("BEGIN CHANNEL_PUT\n", msg)
 
 	if err := msg.Decode(&req); err != nil {
-		// fmt.Println("FAILED MESSAGE DECODE", err)
+		fmt.Println("FAILED MESSAGE DECODE", err)
 		return err
 	}
 	ctxlog.L(ctx).Debugf("CHANNEL_PUT(%#v)", req)
@@ -509,12 +542,21 @@ func (c *serverConn) handleChannelPut(ctx context.Context, msg *connection.Messa
 		switch req.Subcommand {
 		case proto.CHANNEL_PUT_INIT:
 			ctxlog.L(ctx).Debugf("CHANNEL_PUT(%#v)", req)
-			// args, ok := req.PVStructureIF
+			var err error
+
+			fd := pvdata.StructFieldDesc{
+				Name:  "structure",
+				Field: pvdata.FieldDesc{TypeCode: pvdata.FLOAT},
+			}
+			if err != nil {
+				return err
+			}
+
 			// ctxlog.L(ctx).Printf("received request to init channel put with body %v", args)
 			var puter ChannelPuter
 			if getc, ok := channel.(ChannelPutCreator); ok {
 				var err error
-				puter, err = getc.CreateChannelPut(ctx, &pvdata.PVAny{})
+				puter, err = getc.CreateChannelPut(ctx, fd)
 				if err != nil {
 					return err
 				}
@@ -531,21 +573,15 @@ func (c *serverConn) handleChannelPut(ctx context.Context, msg *connection.Messa
 				return err
 			}
 
-			fmt.Println("SENDING CHANNEL_PUT_INIT RESPONSE: Structure Data (TypeCode, HasId, Id):", (byte)(req.TypeFlag), req.TypeID != 0, req.TypeID)
-
-			fd, err := channel.FieldDesc()
-			if err != nil {
-				return err
-			}
-
 			return c.SendApp(ctx, proto.APP_CHANNEL_PUT, &proto.ChannelPutResponseInit{
 				RequestID:        req.RequestID,
 				Subcommand:       req.Subcommand,
 				Status:           errorToStatus(err),
-				PVPutStructureIF: fd,
+				PVPutStructureIF: fd.Field,
 			})
 		case proto.CHANNEL_PUT_GET_PUT:
 			ctxlog.L(ctx).Debugf("CHANNEL_PUT(%#v)", req)
+
 			ctxlog.L(ctx).Printf("received request to execute channel get-put with body %v", req.ToPutBitSet)
 			c.mu.Lock()
 			defer c.mu.Unlock()
@@ -563,14 +599,19 @@ func (c *serverConn) handleChannelPut(ctx context.Context, msg *connection.Messa
 				var geter ChannelGeter
 				if getc, ok := channel.(ChannelGetCreator); ok {
 					var err error
-					geter, err = getc.CreateChannelGet(ctx, pvdata.PVStructure{})
+					var pvstrcut pvdata.PVStructure
+					pvstrcut, err = pvdata.NewPVStructure(nil)
+					if err != nil {
+						return err
+					}
+					geter, err = getc.CreateChannelGet(ctx, pvstrcut)
 					if err != nil {
 						return err
 					}
 				} else if g, ok := channel.(ChannelGeter); ok {
 					geter = g
 				} else {
-					return fmt.Errorf("channel %q (ID %x) does not support Get", channel.Name(), req.ServerChannelID)
+					return fmt.Errorf("channel %q (ID %x) does not support get-put", channel.Name(), req.ServerChannelID)
 				}
 				respData, err := geter.ChannelGet(ctx)
 				resp := &proto.ChannelGetPutResponse{
@@ -616,12 +657,12 @@ func (c *serverConn) handleChannelPut(ctx context.Context, msg *connection.Messa
 				// field := req.PVPutStructureData
 
 				/// TODO : decode the data using the structure from the request
-				// decoder := pvdata.DecoderState{
-				// 	Buf:       bytes.NewReader([]byte{1, 3}),
-				// 	ByteOrder: binary.BigEndian,
-				// }
-				// var data pvdata.PVAny;
-				// err := pvdata.Decode(decoder, data)
+				decoder := pvdata.DecoderState{
+					Buf:       bytes.NewReader([]byte{1, 3}),
+					ByteOrder: binary.BigEndian,
+				}
+				var data pvdata.PVAny
+				err := pvdata.Decode(&decoder, data)
 				// _, err := puter.ChannelPut(req.ToPutBitSet, ctx)
 
 				resp := &proto.ChannelPutResponse{

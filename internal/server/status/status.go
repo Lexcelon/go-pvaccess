@@ -36,6 +36,15 @@ func (c *Channel) CreateChannel(ctx context.Context, name string) (types.Channel
 	return nil, nil
 }
 
+// Stub LookupTypeCode and StoreTypeCode with errors
+func (Channel) LookupTypeCode(code pvdata.PVUShort) (pvdata.FieldDesc, error) {
+	return pvdata.FieldDesc{}, fmt.Errorf("LookupTypeCode not implemented for base server channel")
+}
+
+func (Channel) StoreTypeCode(code pvdata.PVUShort, desc pvdata.FieldDesc) {
+	panic("StoreTypeCode not implemented for base server channel")
+}
+
 type NTScalarArray struct {
 	Value []string `pvaccess:"value"`
 }

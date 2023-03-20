@@ -3,7 +3,6 @@ package pvaccess
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"sync"
 
 	"github.com/Lexcelon/go-pvaccess/internal/ctxlog"
@@ -73,8 +72,9 @@ func (c *serverConn) destroyChannel(id pvdata.PVInt) error {
 }
 
 type SimpleChannel struct {
-	name      string
-	structure pvdata.PVStructure
+	name string
+	// A map of type codes to field descriptors. Technically I think this is a violation of the spec, but the implementation of this library has left me no choice.
+	typeCodes map[pvdata.PVUShort]pvdata.FieldDesc
 
 	mu    sync.Mutex
 	value interface{}
@@ -82,12 +82,11 @@ type SimpleChannel struct {
 	cond  *sync.Cond
 }
 
-func NewSimpleChannel(name string, initialValue pvdata.PVStructure) *SimpleChannel {
+func NewSimpleChannel(name string) *SimpleChannel {
 	c := &SimpleChannel{
 		name: name,
-		// structure: initialValue,
-		structure: pvdata.PVStructure{},
 	}
+	c.typeCodes = make(map[pvdata.PVUShort]pvdata.FieldDesc)
 	c.cond = sync.NewCond(&c.mu)
 	return c
 }
@@ -97,20 +96,29 @@ func (c *SimpleChannel) Name() string {
 }
 
 func (c *SimpleChannel) FieldDesc() (pvdata.FieldDesc, error) {
-	valueField, err := pvdata.ValueToField(reflect.ValueOf(c.value))
+	out := &bareScalar{
+		Value: c.value,
+	}
+	pvs, err := pvdata.NewPVStructure(out)
 	if err != nil {
 		return pvdata.FieldDesc{}, err
 	}
-	return pvdata.FieldDesc{
-		StructType: "structure",
-		TypeCode:   0b10000000,
-		Fields: []pvdata.StructFieldDesc{
-			{
-				Name:  "value",
-				Field: valueField,
-			},
-		},
-	}, nil
+	return pvs.FieldDesc()
+}
+
+func (c *SimpleChannel) LookupTypeCode(code pvdata.PVUShort) (pvdata.FieldDesc, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if desc, ok := c.typeCodes[code]; ok {
+		return desc, nil
+	}
+	return pvdata.FieldDesc{}, fmt.Errorf("unknown type code %d", code)
+}
+
+func (c *SimpleChannel) StoreTypeCode(code pvdata.PVUShort, desc pvdata.FieldDesc) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.typeCodes[code] = desc
 }
 
 // Get returns the current value in c.
