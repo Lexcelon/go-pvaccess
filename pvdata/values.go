@@ -727,6 +727,43 @@ func (v *PVStructureDiff) PVDecode(s *DecoderState) error {
 	return Decode(s, v.Value)
 }
 
+
+type PVStructureDiffPut struct {
+	ChangedBitSet PVBitSet
+	Value         interface{}
+}
+
+func (v PVStructureDiffPut) PVEncode(s *EncoderState) error {
+	var buf bytes.Buffer
+	if err := func() error {
+		defer s.PushWriter(&buf)()
+		s.changedBitSet = PVBitSet{Present: []bool{false}}
+		s.useChangedBitSet = true
+		return Encode(s, v.Value)
+	}(); err != nil {
+		return err
+	}
+	//v.ChangedBitSet = s.changedBitSet
+	//if err := Encode(s, &s.changedBitSet); err != nil {
+	//	return err
+	//}
+	if _, err := buf.WriteTo(s.Buf); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (v *PVStructureDiffPut) PVDecode(s *DecoderState) error {
+	//if err := Decode(s, &v.ChangedBitSet); err != nil {
+	//	return err
+	//}
+	//defer s.pushChangedBitSet(v.ChangedBitSet)()
+	return Decode(s, v.Value)
+}
+
+
+
+
 // Union types
 
 // TODO: Regular union is selector value encoded as size, followed by data

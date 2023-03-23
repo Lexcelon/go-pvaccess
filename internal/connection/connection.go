@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"fmt"
+	//"fmt"
 	"io"
 	"os"
 	"sync"
@@ -127,7 +127,7 @@ func (c *Connection) SendApp(ctx context.Context, messageCommand pvdata.PVByte, 
 	if c.encoderState.ByteOrder == binary.BigEndian {
 		flags |= proto.FLAG_BO_BE
 	}
-	fmt.Println("Version: ", c.Version)
+	//fmt.Println("Version: ", c.Version)
 	h := proto.PVAccessHeader{
 		Version:        c.Version,
 		Flags:          flags,
@@ -186,11 +186,11 @@ func (c *Connection) Next(ctx context.Context) (*Message, error) {
 		header := proto.PVAccessHeader{
 			ForceByteOrder: c.forceByteOrder,
 		}
-		fmt.Println("read buf:", header)
+		//fmt.Println("read buf:", header)
 		if err := pvdata.Decode(c.decoderState, &header); err != nil {
 			return nil, err
 		}
-		fmt.Println("read buf after:", header)
+		//fmt.Println("read buf after:", header)
 		// ctxlog.L(ctx).WithFields(ctxlog.Fields{
 		// 	"version":         header.Version,
 		// 	"flags":           header.Flags,
@@ -227,6 +227,6 @@ func (msg *Message) Decode(out interface{}) error {
 		msg.reader = bytes.NewReader(msg.Data)
 	}
 	defer msg.c.decoderState.PushReader(msg.reader)()
-	fmt.Println("decode", msg, out)
+	//fmt.Println("decode", msg, out)
 	return pvdata.Decode(msg.c.decoderState, out)
 }

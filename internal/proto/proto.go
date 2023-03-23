@@ -47,7 +47,7 @@ func (v *PVAccessHeader) PVDecode(s *pvdata.DecoderState) error {
 	if magic != MAGIC {
 		return fmt.Errorf("unexpected magic %x", magic)
 	}
-	fmt.Println("Payload size -- Should be nothing or nonsense", v.PayloadSize)
+	//fmt.Println("Payload size -- Should be nothing or nonsense", v.PayloadSize)
 	if err := pvdata.Decode(s, &v.Version, &v.Flags, &v.MessageCommand); err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func (v *PVAccessHeader) PVDecode(s *pvdata.DecoderState) error {
 			s.ByteOrder = binary.LittleEndian
 		}
 	}
-	fmt.Println("Decoding payload size")
+	//fmt.Println("Decoding payload size")
 	return v.PayloadSize.PVDecode(s)
 }
 
@@ -294,6 +294,14 @@ type ChannelPutRequest struct {
 	PVPutStructureData pvdata.PVAny    // PVField
 }
 
+type ChannelPutRequestPut struct {
+	ServerChannelID pvdata.PVInt
+	RequestID       pvdata.PVInt
+	Subcommand      pvdata.PVByte
+	ToPutBitSet        pvdata.PVShort  //pvdata.PVBitSet // PvBitSet
+	PVPutStructureData pvdata.PVLong    // PVField
+}
+
 func (r ChannelPutRequest) PVEncode(s *pvdata.EncoderState) error {
 	if err := pvdata.Encode(s, &r.ServerChannelID, &r.RequestID, &r.Subcommand); err != nil {
 		return err
@@ -301,8 +309,9 @@ func (r ChannelPutRequest) PVEncode(s *pvdata.EncoderState) error {
 	if r.Subcommand&CHANNEL_GET_INIT == CHANNEL_GET_INIT {
 		return pvdata.Encode(s, &r.FieldDesc)
 	} else if r.Subcommand&CHANNEL_PUT_GET_PUT == CHANNEL_PUT_GET_PUT {
-	} else if r.Subcommand&CHANNEL_PUT_FINAL == CHANNEL_PUT_FINAL {
-		return pvdata.Encode(s, &r.ToPutBitSet, &r.PVPutStructureData)
+		return nil
+	} else {
+		return nil
 	}
 	return nil
 }
@@ -310,7 +319,11 @@ func (r *ChannelPutRequest) PVDecode(s *pvdata.DecoderState) error {
 	if err := pvdata.Decode(s, &r.ServerChannelID, &r.RequestID, &r.Subcommand); err != nil {
 		return err
 	}
-	if r.Subcommand&CHANNEL_PUT_INIT == CHANNEL_PUT_INIT {
+	//fmt.Println("subcommand:",r.Subcommand)
+	if r.Subcommand == 0 || r.Subcommand == 0x10 {
+		//fmt.Println("subcommand 0 command")
+		return nil //pvdata.Decode(s, &r.ToPutBitSet, &r.PVPutStructureData)
+	} else if r.Subcommand&CHANNEL_PUT_INIT == CHANNEL_PUT_INIT {
 		var typeFlag pvdata.PVUByte
 		var typeID pvdata.PVUShort
 		if err := pvdata.Decode(s, &typeFlag, &typeID); err != nil {
@@ -328,9 +341,39 @@ func (r *ChannelPutRequest) PVDecode(s *pvdata.DecoderState) error {
 			return nil
 		}
 	} else if r.Subcommand&CHANNEL_PUT_GET_PUT == CHANNEL_PUT_GET_PUT {
-	} else if r.Subcommand&CHANNEL_PUT_FINAL == CHANNEL_PUT_FINAL {
-		return pvdata.Decode(s, &r.ToPutBitSet, &r.PVPutStructureData)
+		return nil
+	} else {
+		return nil //pvdata.Decode(s, &r.ToPutBitSet, &r.PVPutStructureData)
 	}
+	return nil
+}
+
+
+
+func (r ChannelPutRequestPut) PVEncode(s *pvdata.EncoderState) error {
+	if err := pvdata.Encode(s, &r.ServerChannelID, &r.RequestID, &r.Subcommand); err != nil {
+		return err
+	}
+	return pvdata.Encode(s, &r.ToPutBitSet, &r.PVPutStructureData)
+}
+func (r *ChannelPutRequestPut) PVDecode(s *pvdata.DecoderState) error {
+	if err := pvdata.Decode(s, &r.ServerChannelID, &r.RequestID, &r.Subcommand); err != nil {
+		return err
+	}
+	//pvdata.Decode(s, &r.ToPutBitSet)
+	//fmt.Println("putbitset:",r.ToPutBitSet)
+	
+	//pvdata.Decode(s,&r.PVPutStructureData)
+	//fmt.Println("putdata:",r.PVPutStructureData)
+	//bitset := PVShort(1) //pvdata.NewBitSetWithBits(1)
+	//pvdata.Decode(s,&bitset)
+	//r.ToPutBitSet = bitset
+	//pvdata.Decode(s,&r.ToPutBitSet)
+	
+	//data := pvdata.PVLong(0)
+	//pvdata.Decode(s,&r.PVPutStructureData)
+	//r.PVPutStructureData = data
+	
 	return nil
 }
 
