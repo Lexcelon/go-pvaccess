@@ -32,8 +32,8 @@ type ChannelFinder interface {
 type Channel interface {
 	Name() string
 	FieldDesc() (pvdata.FieldDesc, error)
-	LookupTypeCode(code pvdata.PVUShort) (pvdata.FieldDesc, error)
-	StoreTypeCode(code pvdata.PVUShort, desc pvdata.FieldDesc)
+	//LookupTypeCode(code pvdata.PVUShort) (pvdata.FieldDesc, error)
+	//StoreTypeCode(code pvdata.PVUShort, desc pvdata.FieldDesc)
 }
 
 type ChannelGetCreator interface {

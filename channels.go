@@ -74,6 +74,8 @@ func (c *serverConn) destroyChannel(id pvdata.PVInt) error {
 type SimpleChannel struct {
 	name string
 	// A map of type codes to field descriptors. Technically I think this is a violation of the spec, but the implementation of this library has left me no choice.
+	
+	//structure pvdata.PVStructure
 	typeCodes map[pvdata.PVUShort]pvdata.FieldDesc
 
 	mu    sync.Mutex
